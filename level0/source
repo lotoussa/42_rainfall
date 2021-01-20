@@ -1,0 +1,24 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <strings.h>
+
+int			main(int argc, char **argv)
+{
+	char	*str;
+	uid_t	uid;
+	gid_t	gid;
+
+	if (atoi(argv[1]) == 0x1a7)
+	{
+		str = strdup("/bin/sh");
+		gid = getegid();
+		uid = geteuid();
+		setresgid(gid, gid, gid);
+		setresuid(uid, uid, uid);
+		execv("/bin/sh", &str);
+	}
+	else
+		fwrite("No !\n", 1, 5, (FILE *)stderr);
+	return (0x0);
+}

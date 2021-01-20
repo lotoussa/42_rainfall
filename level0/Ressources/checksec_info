@@ -1,0 +1,79 @@
+level0@RainFall:~$ checksec --kernel
+* Kernel protection information:
+
+  Description - List the status of kernel protection mechanisms. Rather than
+  inspect kernel mechanisms that may aid in the prevention of exploitation of
+  userspace processes, this option lists the status of kernel configuration
+  options that harden the kernel itself against attack.
+
+  Kernel config: /boot/config-3.2.0-90-generic-pae
+
+  Warning: The config on disk may not represent running kernel config!
+
+  GCC stack protector support:            Enabled
+  Strict user copy checks:                Disabled
+  Enforce read-only kernel data:          Enabled
+  Restrict /dev/mem access:               Enabled
+  Restrict /dev/kmem access:              Enabled
+
+* grsecurity / PaX: No GRKERNSEC
+
+  The grsecurity / PaX patchset is available here:
+    http://grsecurity.net/
+
+* Kernel Heap Hardening: No KERNHEAP
+
+  The KERNHEAP hardening patchset is available here:
+    https://www.subreption.com/kernheap/
+
+
+level0@RainFall:~$ checksec --file level0
+RELRO           STACK CANARY      NX            PIE             RPATH      RUNPATH      FILE
+No RELRO        No canary found   NX enabled    No PIE          No RPATH   No RUNPATH   level0
+
+
+
+GCC stack protector support:
+	In-kernel GCC stack protector support is the same as the Canary explanation I gave earlier, but now for the kernel code. Memory used by the stack (which contains both function variables as well as return addresses) is "interleaved" with specific data (canaries) which are checked before using a return address that is on the stack. If the canary doesn't match, you'll see a nice kernel panic. This is to prevent buffer overflows that might influence the in-kernel activity flow or overwrite data.
+
+Strict user copy checks:
+	This enables the compiler to detect function calls with variable length data arguments to an extend that it can predict the (should-be) length of the argument. If this is the case, the function is switched with a(nother in-kernel) function that either continues the call, or break in case of a length mismatch. This is to prevent buffer overflows that might corrupt the stack (or other data locations).
+
+Restrict /dev/mem access:
+	When selecting Restrict /dev/mem access, the kernel does not allow applications (even those running as root) to access all of memory. Instead, they are only allowed to see device-mapped memory (and their own process memory).
+
+Restrict /dev/kmem access:
+	The same goes for Restrict /dev/kmem access, which is specifically for kernel memory.
+
+grsecurity / PaX:
+	It is a mandatory access control system. It is used, for example, when it is useful to restrict access to certain resources to the root user (who normally has access to all resources). The grsecurity policy differs from other security models in that it does not pretend to find and remove existing vulnerabilities, but to make them useless. In this way, each process in a system can be limited to performing only those tasks for which the administrator authorizes it to do so, hoping to prevent an attacker from compromising the entire system. This security patch therefore assumes that the Linux kernel is free of exploitable bugs. In addition, grsecurity includes PaX, a patch that enhances system security by enabling non-executable pages and making the memory address space random.
+
+Kernel Heap Hardening:
+	Kernel Heap Hardening enhances the in-kernel dynamic memory allocator with additional hardening features (double-free protection, use-after-free protection, ...). It tries to ensure proper use of the allocated memory segments and protect against improper access.
+
+System-wide ASLR (kernel.randomize_va_space):
+	In order to prevent an attacker from reliably jumping to, for example, a particular exploited function in memory, ASLR randomly arranges the address space positions of key data areas of a process, including the base of the executable and the positions of the stack, heap and libraries.
+
+
+RELRO:
+	RELRO stands for Relocation Read-Only, meaning that the headers in your binary, which need to be writable during startup of the application (to allow the dynamic linker to load and link stuff like shared libraries) are marked as read-only when the linker is done doing its magic (but before the application itself is launched).
+
+STACK CANARY:
+	A Canary is a certain value put on the stack (memory where function local variables are also stored) and validated before that function is left again. Leaving a function means that the "previous" address (i.e. the location in the application right before the function was called) is retrieved from this stack and jumped to (well, the part right after that address - we do not want an endless loop do we?). If the canary value is not correct, then the stack might have been overwritten / corrupted (for instance by writing more stuff in the local variable than allowed - called buffer overflow) so the application is immediately stopped.
+
+NX:
+	The abbreviation NX stands for non-execute or non-executable segment. It means that the application, when loaded in memory, does not allow any of its segments to be both writable and executable. The idea here is that writable memory should never be executed (as it can be manipulated) and vice versa. Having NX enabled would be good.
+
+PIE:
+	PIE, meaning Position Independent Executable. A No PIE application tells the loader which virtual address it should use (and keeps its memory layout quite static). Hence, attacks against this application know up-front how the virtual memory for this application is (partially) organized. Combined with in-kernel ASLR (Address Space Layout Randomization, which Gentoo's hardened-sources of course support) PIE applications have a more diverge memory organization, making attacks that rely on the memory structure more difficult.
+
+- We used LD_LIBRARY_PATH to specify runtime path. Similarly rpath and runpath are used the specify the runtime paths to find libraries. The difference is the order in which they are searched. Rpath is first searched and next LD_LIBRARY_PATH, then runpath.
+
+RPATH:
+	RPATH stands for run-time search path. According to Wikipedia, “rpath designates the run-time search path hard-coded in an executable file or library. Dynamic linking loaders use the rpath to find required libraries.” Dynamic linking is a sort of “lazy” linking of required shared libraries not during the stage of compiling but the later stage of running one executable. A path to the shared libraries will be encoded into the header of the executable if rpath is set, overriding or supplementing the system default shared library searching paths, similar as one extends the chain of PATH system variable.
+
+RUNPATH:
+	Earlier rpath was the only flag that existed. The problem arised that once rpath is set(which is done at the build time) we cannot override it during execution since LD_LIBRARY_PATH has lower precedence. We need to rebuild the executable everytime we need to test it with a different library which was quite annoying. That is when runpath was introduced where we could override the libraries with LD_LIBRARY_PATH which makes it easy to test accross different libraries without rebuilding it everytime.
+
+FILE:
+	The file inspected by checksec, the one to exploit.

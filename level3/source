@@ -1,0 +1,25 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int			m; # ds:0x804988c
+
+void		v(void)
+{
+	char	ptr[520];
+
+	fgets(ptr, 0x200, stdin);
+	printf(ptr);
+	if (m == 0x40)
+	{
+		fwrite("Wait what?!\n", 1, 0xc, stdout);
+		system("/bin/sh");
+	}
+	return;
+}
+
+void		main(void)
+{
+	v();
+	return;
+}
+

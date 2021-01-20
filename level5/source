@@ -1,0 +1,26 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int			m; # 0x08049854
+
+void		o(void) # 0x080484a4
+{
+	system("/bin/sh");
+	_exit(1);
+}
+
+void		n(void)
+{
+	char	ptr[520];
+
+	fgets(ptr, 0x200, stdin);
+	printf(ptr);
+	exit(1); # 0x8049838
+}
+
+void		main(void)
+{
+	n();
+	return;
+}
+

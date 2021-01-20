@@ -1,0 +1,24 @@
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+int			main(int argc, char **argv)
+
+{
+	int		ret;
+	void	*ptr[40];
+	int		nb;
+
+	nb = atoi(argv[1]);
+	if (nb < 10)
+	{
+		memcpy(ptr, argv[2], nb * 4);
+		if (nb == 0x574f4c46)
+			execl("/bin/sh", "sh", 0);
+		ret = 0;
+	}
+	else
+		ret = 1;
+	return (ret);
+}
+

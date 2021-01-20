@@ -1,0 +1,29 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+void		n(void) # 0x08048454
+{
+	system("/bin/cat /home/user/level7/.pass");
+	return;
+}
+
+void		m(void)
+{
+	puts("Nope");
+	return;
+}
+
+int			main(int argc, char **argv)
+{
+	char	*str;
+	void	(*ptr)(void);
+
+	str = (char *)malloc(0x40);
+	ptr = (void **)malloc(4);
+	*ptr = m;
+	strcpy(str, argv[1]);
+	ptr();
+	return (0);
+}
+

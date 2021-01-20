@@ -1,0 +1,18 @@
+#include <stdlib.h>
+
+int			main(int argc, char **argv)
+{
+	void	*ptr;
+	void	**func;
+
+	if (argc < 2)
+		_exit(1);
+	ptr = (void *)operator.new(0x6c); # malloc
+	N(ptr, 5);
+	func = (void **)operator.new(0x6c); # malloc
+	N((void *)func, 6);
+	setAnnotation(ptr, argv[1]); # memcpy
+	func(this_00, ptr);
+	return (0);
+}
+

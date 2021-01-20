@@ -1,0 +1,28 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int			m; # 08049810
+
+void		p(char *str)
+{
+	printf(str);
+	return;
+}
+
+void		n(void)
+{
+	char	ptr[520]; # [512]
+
+	fgets(ptr, 0x200, stdin);
+	p(ptr);
+	if (m == 0x1025544)
+		system("/bin/cat /home/user/level5/.pass");
+	return;
+}
+
+void		main(void)
+{
+	n();
+	return;
+}
+

